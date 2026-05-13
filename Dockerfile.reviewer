@@ -1,0 +1,83 @@
+# Dockerfile.reviewer
+#
+# Installs ONLY the prerequisites a reviewer needs to follow the
+# "Using Redpanda's Dynamic Plugins" tutorial from scratch.
+#
+# What is installed (prerequisites):
+#   - Node.js 20        (run the JS helper scripts)
+#   - Python 3.12       (runtime for plugin subprocesses)
+#   - uv                (Python package manager used by the tutorial)
+#   - rpk               (Redpanda CLI — provides `rpk connect run`)
+#   - curl, unzip, git  (fetch tools)
+#
+# What is NOT installed (tutorial artifacts — the reader creates these):
+#   - yell-plugin/ directory
+#   - yell_processor.py
+#   - plugin.yaml / connect.yaml
+#   - redpanda_connect Python package (installed via uv inside the tutorial)
+#
+# Build:
+#   docker build -f Dockerfile.reviewer -t rpconnect-reviewer .
+# Run:
+#   docker run -it --rm rpconnect-reviewer bash
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ---------------------------------------------------------------------------
+# System packages
+# ---------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    unzip \
+    python3.12 \
+    python3.12-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Make python3.12 the default python3
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+# ---------------------------------------------------------------------------
+# Node.js 20 (via NodeSource)
+# ---------------------------------------------------------------------------
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# uv — Python package manager recommended by Redpanda Connect docs
+# Install to /usr/local/bin so it is on PATH for all users
+# ---------------------------------------------------------------------------
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local sh
+
+# ---------------------------------------------------------------------------
+# rpk — Redpanda CLI (provides `rpk connect run --rpc-plugins`)
+# Download the latest Linux/amd64 release from GitHub
+# ---------------------------------------------------------------------------
+RUN curl -L \
+    "https://github.com/redpanda-data/redpanda/releases/latest/download/rpk-linux-amd64.zip" \
+    -o /tmp/rpk.zip \
+    && unzip /tmp/rpk.zip -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/rpk \
+    && rm /tmp/rpk.zip
+
+# ---------------------------------------------------------------------------
+# Verify installations
+# ---------------------------------------------------------------------------
+RUN node --version \
+    && npm --version \
+    && python3 --version \
+    && uv --version \
+    && rpk version
+
+# ---------------------------------------------------------------------------
+# Working directory — reviewer clones / copies the tutorial repo here
+# ---------------------------------------------------------------------------
+WORKDIR /tutorial
+
+# Reviewer entry point
+CMD ["bash"]
