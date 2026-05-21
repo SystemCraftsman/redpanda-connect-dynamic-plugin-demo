@@ -1,0 +1,12 @@
+input:
+  generate:
+    interval: 1s
+    count: 5
+    mapping: |
+      root = "hello from redpanda connect"
+pipeline:
+  processors:
+    - yell: {}
+output:
+  stdout:
+    codec: lines

@@ -1,0 +1,11 @@
+name: yell
+summary: Converts every message payload to uppercase with optional prefix and repeat.
+command: ["uv", "run", "yell_processor.py"]
+type: processor
+fields:
+  - name: prefix
+    type: string
+    default: ""
+  - name: repeat_count
+    type: int
+    default: 1

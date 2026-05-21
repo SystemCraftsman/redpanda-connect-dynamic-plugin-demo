@@ -1,0 +1,5 @@
+name: yell
+summary: Converts every message payload to uppercase.
+command: ["uv", "run", "yell_processor.py"]
+type: processor
+fields: []

@@ -1,71 +1,88 @@
-# Redpanda Connect Dynamic Plugins — Tutorial Examples
+# Redpanda Connect Dynamic Plugins
 
-This repository contains working code examples for building [Redpanda Connect](https://docs.redpanda.com/redpanda-connect/home/) dynamic plugins using the Python SDK. The examples walk through writing a processor plugin from scratch, declaring its manifest, wiring it into a pipeline, and making it configurable.
+Working code examples for building [Redpanda Connect](https://docs.redpanda.com/redpanda-connect/home/) dynamic plugins using the Python SDK. The examples walk through writing a processor plugin from scratch, declaring its manifest, wiring it into a pipeline, and making it configurable.
 
 ## What This Project Does
 
-The code demonstrates how to extend Redpanda Connect with custom Python logic at runtime using the `--plugins-dir` mechanism. You write a Python class, drop a `plugin.yaml` manifest alongside it, and run `rpk connect run --plugins-dir` to load it without recompiling anything.
+The code demonstrates how to extend Redpanda Connect with custom Python logic at runtime using the RPC plugin mechanism. You write a Python function decorated with `@redpanda_connect.processor`, drop a `plugin.yaml` manifest alongside it, and run `rpk connect run --rpc-plugins=plugin.yaml` to load it without recompiling anything.
 
 ## Prerequisites
 
-- [Redpanda Connect](https://docs.redpanda.com/redpanda-connect/home/) (`rpk` CLI)
-- Python 3.8 or later
-- Node.js 18 or later (for running the example scripts and smoke tests)
-
-## Installation
-
-```bash
-git clone https://github.com/draftdev/test--using-redpandas-dynamic-plugins
-cd redpanda-dynamic-plugins
-pip install redpanda-connect-sdk-python
-npm install
-```
+- [Redpanda Connect](https://docs.redpanda.com/redpanda-connect/home/) (`rpk` CLI, v4.56.0 or later)
+- Python 3.12 or later
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 
 ## Project Structure
 
 ```
 .
-├── src/
-│   └── index.js                  # Main entry point for the example runner
-├── examples/
-│   ├── 01-scaffold-project.js    # Scaffolds the plugin directory layout
-│   ├── 02-yell-processor.js      # Builds the YellProcessor plugin files
-│   ├── 03-plugin-config.js       # Generates plugin.yaml and connect.yaml
-│   ├── 04-configurable-plugin.js # Extends the processor with runtime config
-│   └── 05-run-pipeline.js        # Invokes rpk connect run and captures output
-├── tests/
-│   └── smoke.test.js             # End-to-end validation of the full pipeline
-├── plugins/                      # Created by example scripts (not committed)
-├── connect.yaml                  # Generated pipeline configuration
-└── Dockerfile.reviewer           # Containerized review environment
+├── plugins/
+│   ├── yell-processor/              # Simple plugin (uppercases messages)
+│   │   ├── yell_processor.py
+│   │   └── plugin.yaml
+│   └── yell-processor-configurable/ # Extended version with runtime config
+│       ├── yell_processor.py
+│       └── plugin.yaml
+├── connect.yaml                     # Pipeline config for the simple plugin
+├── connect-configurable.yaml        # Pipeline config for the configurable plugin
+└── Dockerfile.reviewer              # Containerized review environment
 ```
 
-## Running the Examples
+## Quick Start
 
-Each example script in `examples/` is self-contained and builds on the previous one. Run them in order:
+Initialize the plugin project and install the SDK:
 
 ```bash
-node examples/01-scaffold-project.js
-node examples/02-yell-processor.js
-node examples/03-plugin-config.js
-node examples/04-configurable-plugin.js
-node examples/05-run-pipeline.js
+cd plugins/yell-processor
+uv init --no-readme
+uv add redpanda_connect
 ```
 
-After running `03-plugin-config.js`, a `plugins/` directory and a `connect.yaml` file will be present. You can run the pipeline directly at any point with:
+Run the simple pipeline from the repo root:
 
 ```bash
-rpk connect run --plugins-dir ./plugins connect.yaml
+rpk connect run --rpc-plugins=plugins/yell-processor/plugin.yaml connect.yaml
 ```
 
-## Running the Smoke Tests
+Expected output (5 lines):
+
+```
+HELLO FROM REDPANDA CONNECT
+HELLO FROM REDPANDA CONNECT
+HELLO FROM REDPANDA CONNECT
+HELLO FROM REDPANDA CONNECT
+HELLO FROM REDPANDA CONNECT
+```
+
+## Running the Configurable Plugin
+
+Initialize and run the configurable version:
 
 ```bash
-node tests/smoke.test.js
+cd plugins/yell-processor-configurable
+uv init --no-readme
+uv add redpanda_connect
+cd ../..
+rpk connect run --rpc-plugins=plugins/yell-processor-configurable/plugin.yaml connect-configurable.yaml
 ```
 
-The smoke test verifies that the plugin directory structure is correct, that `plugin.yaml` contains the required fields, and that `rpk connect run` exits cleanly with the expected output.
+Expected output (5 lines, prefix ">> " applied, repeated twice):
 
-## Environment Variables
+```
+>> HELLO FROM REDPANDA CONNECT>> HELLO FROM REDPANDA CONNECT
+>> HELLO FROM REDPANDA CONNECT>> HELLO FROM REDPANDA CONNECT
+>> HELLO FROM REDPANDA CONNECT>> HELLO FROM REDPANDA CONNECT
+>> HELLO FROM REDPANDA CONNECT>> HELLO FROM REDPANDA CONNECT
+>> HELLO FROM REDPANDA CONNECT>> HELLO FROM REDPANDA CONNECT
+```
 
-No `.env` file is required for the base examples. If you extend the configurable plugin example to call external services, create a `.env` file in the project root and load it in your Python plugin's `__init__` method using `python-dotenv` or `os.environ`.
+## Review Environment
+
+Build and run the Docker container with all prerequisites installed:
+
+```bash
+docker build -f Dockerfile.reviewer -t rpconnect-reviewer .
+docker run -it --rm rpconnect-reviewer bash
+```
+
+Follow the tutorial steps inside the container to verify everything works from scratch.
