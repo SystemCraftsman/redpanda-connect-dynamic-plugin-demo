@@ -3,7 +3,8 @@ input:
     interval: 1s
     count: 5
     mapping: |
-      root = "hello from redpanda connect"
+      let events = ["user signed up from mobile-app", "payment processed for order 1042", "dashboard export requested", "session timeout on web-client", "inventory sync completed"]
+      root = $events.index(counter() % 5)
 pipeline:
   processors:
     - yell: {}
